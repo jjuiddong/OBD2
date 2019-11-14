@@ -1,7 +1,7 @@
 # ODB2
 ODB2 Serial Communication with VS2017 C++
 
-- reference source code (embedded c avr library)
+- reference source code (embedded c, atmel library)
   - https://github.com/stanleyhuangyc/ArduinoOBD
 
 
