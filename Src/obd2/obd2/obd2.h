@@ -4,6 +4,7 @@
 //
 // reference
 //		https://github.com/stanleyhuangyc/ArduinoOBD
+//		- Written by Stanley Huang <stanleyhuangyc@gmail.com>
 //
 #pragma once
 
@@ -98,7 +99,8 @@ public:
 	virtual ~cOBD2();
 
 	bool Open(const int comPort = 2, const int baudRate = 9600
-		, iOBD2Receiver *receiver = nullptr);
+		, iOBD2Receiver *receiver = nullptr
+		, const bool isLog = false);
 	bool Process(const float deltaSeconds);
 	bool Query(const ePID pid);
 	bool Close();
@@ -114,6 +116,7 @@ protected:
 public:
 	common::cBufferedSerial m_ser;
 	iOBD2Receiver *m_receiver;
+	bool m_isLog;
 };
 
 

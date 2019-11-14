@@ -4,6 +4,7 @@
 #pragma once
 
 #include <iostream>
+#include <fstream>
 #include <windows.h>
 
 #ifndef IN
@@ -23,3 +24,5 @@ typedef unsigned int uint;
 #include "circularqueue.h"
 #include "serial.h"
 #include "BufferedSerial.h"
+#include "utility.h"
+

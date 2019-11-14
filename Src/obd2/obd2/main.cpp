@@ -31,7 +31,7 @@ int main()
 	cOBDRecv rcv;
 	cOBD2 obd;
 	const int baudrates[] = { 115200, 38400 };
-	if (!obd.Open(4, baudrates[0], &rcv))
+	if (!obd.Open(4, baudrates[0], &rcv, true))
 		return 0;
 
 	while (g_isLoop)

@@ -23,6 +23,9 @@
       <Filter>common</Filter>
     </ClInclude>
     <ClInclude Include="obd2.h" />
+    <ClInclude Include="utility.h">
+      <Filter>common</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="common">

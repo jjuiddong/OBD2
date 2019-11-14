@@ -2,64 +2,6 @@
 #include "stdafx.h"
 #include "obd2.h"
 
-// https://github.com/stanleyhuangyc/ArduinoOBD
-uint16_t hex2uint16(const char *p)
-{
-	char c = *p;
-	uint16_t i = 0;
-	for (char n = 0; c && n < 4; c = *(++p)) {
-		if (c >= 'A' && c <= 'F') {
-			c -= 7;
-		}
-		else if (c >= 'a' && c <= 'f') {
-			c -= 39;
-		}
-		else if (c == ' ') {
-			continue;
-		}
-		else if (c < '0' || c > '9') {
-			break;
-		}
-		i = (i << 4) | (c & 0xF);
-		n++;
-	}
-	return i;
-}
-
-byte hex2uint8(const char *p)
-{
-	byte c1 = *p;
-	byte c2 = *(p + 1);
-	if (c1 >= 'A' && c1 <= 'F')
-		c1 -= 7;
-	else if (c1 >= 'a' && c1 <= 'f')
-		c1 -= 39;
-	else if (c1 < '0' || c1 > '9')
-		return 0;
-
-	if (c2 >= 'A' && c2 <= 'F')
-		c2 -= 7;
-	else if (c2 >= 'a' && c2 <= 'f')
-		c2 -= 39;
-	else if (c2 < '0' || c2 > '9')
-		return 0;
-
-	return c1 << 4 | (c2 & 0xf);
-}
-
-uint8_t getPercentageValue(char* data) {
-	return (uint16_t)hex2uint8(data) * 100 / 255;
-}
-uint16_t getLargeValue(char* data) {
-	return hex2uint16(data);
-}
-uint8_t getSmallValue(char* data) {
-	return hex2uint8(data);
-}
-int16_t getTemperatureValue(char* data) {
-	return (int)hex2uint8(data) - 40;
-}
-
 
 cOBD2::cOBD2()
 	: m_receiver(nullptr)
@@ -76,20 +18,19 @@ cOBD2::~cOBD2()
 bool cOBD2::Open(const int comPort //= 2
 	, const int baudRate //= 9600
 	, iOBD2Receiver *receiver //=nullptr
+	, const bool isLog //= false
 )
 {
 	Close();
-
+	m_isLog = isLog;
 	if (!m_ser.Open(comPort, baudRate))
 		return false;
-
 	MemsInit();
-
 	return true;
 }
 
 
-// 
+// process odb2 communication
 bool cOBD2::Process(const float deltaSeconds)
 {
 	if (!IsOpened())
@@ -101,8 +42,11 @@ bool cOBD2::Process(const float deltaSeconds)
 	if (readLen <= 0)
 		return true;
 
-	// parse pid data
 	buffer[readLen] = NULL;
+	if (m_isLog)
+		Log(buffer);
+
+	// parse pid data
 	int pid = 0;
 	char *p = buffer;
 	char *data = nullptr;
@@ -122,7 +66,6 @@ bool cOBD2::Process(const float deltaSeconds)
 			}
 		}
 	}
-
 	if (!data)
 		return true;
 
@@ -130,7 +73,7 @@ bool cOBD2::Process(const float deltaSeconds)
 	if (!NormalizeData((ePID)pid, data, result))
 		return false;
 
-	if (m_receiver)
+	if (m_receiver) // call callback function
 		m_receiver->Recv(pid, result);
 
 	return true;
