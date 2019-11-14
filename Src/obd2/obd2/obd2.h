@@ -7,7 +7,7 @@
 //
 #pragma once
 
-interface iOBDReceiver {
+interface iOBD2Receiver {
 	virtual void Recv(const int pid, const int data) = 0;
 };
 
@@ -98,7 +98,7 @@ public:
 	virtual ~cOBD2();
 
 	bool Open(const int comPort = 2, const int baudRate = 9600
-		, iOBDReceiver *receiver = nullptr);
+		, iOBD2Receiver *receiver = nullptr);
 	bool Process(const float deltaSeconds);
 	bool Query(const ePID pid);
 	bool Close();
@@ -113,7 +113,7 @@ protected:
 
 public:
 	common::cBufferedSerial m_ser;
-	iOBDReceiver *m_receiver;
+	iOBD2Receiver *m_receiver;
 };
 
 

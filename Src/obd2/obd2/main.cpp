@@ -10,7 +10,7 @@ BOOL CtrlHandler(DWORD fdwCtrlType)
 }
 
 
-class cOBDRecv : public iOBDReceiver 
+class cOBDRecv : public iOBD2Receiver 
 {
 public:
 	virtual void Recv(const int pid, const int data) override
