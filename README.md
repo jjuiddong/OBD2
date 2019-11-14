@@ -5,5 +5,5 @@ ODB2 Serial Communication with VS2017 C++
  - https://github.com/stanleyhuangyc/ArduinoOBD
 
 
-![Alt Text](https://github.com/jjuiddong/ODB2/blob/master/Doc/odb.jpg?raw=true)
+![Alt Text](https://github.com/jjuiddong/OBD2/blob/master/Doc/obd.jpg?raw=true)
 
