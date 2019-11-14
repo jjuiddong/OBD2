@@ -1,0 +1,32 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="stdafx.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="BufferedSerial.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="Serial.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="obd2.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="stdafx.h" />
+    <ClInclude Include="BufferedSerial.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="circularqueue.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="Serial.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="obd2.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="common">
+      <UniqueIdentifier>{2ee39327-0000-4e29-8f48-4bb4f859eb40}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>
