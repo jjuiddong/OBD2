@@ -6,6 +6,9 @@
 //		https://github.com/stanleyhuangyc/ArduinoOBD
 //		- Written by Stanley Huang <stanleyhuangyc@gmail.com>
 //
+// OBD-II PIDs document
+//		- https://en.wikipedia.org/wiki/OBD-II_PIDs
+//
 #pragma once
 
 interface iOBD2Receiver {
