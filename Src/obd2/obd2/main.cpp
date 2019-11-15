@@ -19,6 +19,15 @@ public:
 	}
 };
 
+void WaitObd2(cOBD2 &obd)
+{
+	for (int i = 0; i < 1000; ++i)
+	{
+		obd.Process(0.001f);
+		Sleep(1);
+	}
+}
+
 
 int main()
 {
@@ -31,18 +40,20 @@ int main()
 	cOBDRecv rcv;
 	cOBD2 obd;
 	const int baudrates[] = { 115200, 38400 };
-	const bool isOpen = obd.Open(4, baudrates[0], &rcv, false);
-	//if (!isOpen)
-	//	return 0;
+	const bool isOpen = obd.Open(4, baudrates[0], &rcv, true);
+	if (!isOpen)
+		return 0;
 
 	while (g_isLoop)
 	{
 		obd.Query(cOBD2::PID_RPM);
-		for (int i = 0; i < 100; ++i)
-		{
-			obd.Process(0.1f);
-			Sleep(10);
-		}
+		WaitObd2(obd);
+		obd.Query(cOBD2::PID_SPEED);
+		WaitObd2(obd);
+		obd.Query(cOBD2::PID_GPS_LATITUDE);
+		WaitObd2(obd);
+		obd.Query(cOBD2::PID_GPS_LONGITUDE);
+		WaitObd2(obd);
 	}
 
 	obd.Close();
