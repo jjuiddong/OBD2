@@ -88,7 +88,7 @@ public:
 		, iOBD2Receiver *receiver = nullptr
 		, const bool isLog = false);
 	bool Process(const float deltaSeconds);
-	bool Query(const ePID pid);
+	bool Query(const ePID pid, const bool isQueuing = true);
 	bool Close();
 	bool IsOpened() const;
 
@@ -105,8 +105,10 @@ public:
 
 	eState m_state;
 	common::cSerialAsync m_ser;
+	std::queue<ePID> m_queryQ;
 	iOBD2Receiver *m_receiver;
 	bool m_isLog;
+	float m_waitingTime;
 };
 
 

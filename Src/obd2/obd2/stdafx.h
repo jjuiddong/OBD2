@@ -6,6 +6,7 @@
 #include <iostream>
 #include <fstream>
 #include <thread>
+#include <queue>
 #include <windows.h>
 
 #ifndef IN
