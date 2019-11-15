@@ -2,14 +2,6 @@
 #include "stdafx.h"
 #include "obd2.h"
 
-bool g_isLoop = true;
-BOOL CtrlHandler(DWORD fdwCtrlType)
-{
-	g_isLoop = false;
-	return TRUE;
-}
-
-
 class cOBDRecv : public iOBD2Receiver 
 {
 public:
@@ -19,6 +11,12 @@ public:
 	}
 };
 
+bool g_isLoop = true;
+BOOL CtrlHandler(DWORD fdwCtrlType) {
+	g_isLoop = false;
+	return TRUE;
+}
+
 void WaitObd2(cOBD2 &obd)
 {
 	for (int i = 0; i < 1000; ++i)
@@ -27,7 +25,6 @@ void WaitObd2(cOBD2 &obd)
 		Sleep(1);
 	}
 }
-
 
 int main()
 {
@@ -49,10 +46,6 @@ int main()
 		obd.Query(cOBD2::PID_RPM);
 		WaitObd2(obd);
 		obd.Query(cOBD2::PID_SPEED);
-		WaitObd2(obd);
-		obd.Query(cOBD2::PID_GPS_LATITUDE);
-		WaitObd2(obd);
-		obd.Query(cOBD2::PID_GPS_LONGITUDE);
 		WaitObd2(obd);
 	}
 

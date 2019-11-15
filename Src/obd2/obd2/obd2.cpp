@@ -5,6 +5,7 @@
 
 cOBD2::cOBD2()
 	: m_receiver(nullptr)
+	, m_state(eState::DISCONNECT)
 {
 }
 
@@ -24,9 +25,16 @@ bool cOBD2::Open(const int comPort //= 2
 	Close();
 	m_isLog = isLog;
 	m_receiver = receiver;
-	if (!m_ser.Open(comPort, baudRate))
+	if (!m_ser.Open(comPort, baudRate, '\r'))
 		return false;
-	MemsInit();
+
+	m_state = eState::CONNECTING;
+	if (!MemsInit())
+	{
+		Close();
+		return false;
+	}
+
 	return true;
 }
 
@@ -37,9 +45,8 @@ bool cOBD2::Process(const float deltaSeconds)
 	if (!IsOpened())
 		return false;
 
-	int readLen = 0;
 	char buffer[common::cBufferedSerial::MAX_BUFFERSIZE];
-	m_ser.ReadStringUntil('\r', buffer, readLen, sizeof(buffer));
+	const uint readLen = m_ser.RecvData((BYTE*)buffer, sizeof(buffer));
 	if (readLen <= 0)
 		return true;
 
@@ -83,30 +90,32 @@ bool cOBD2::Query(const ePID pid)
 		return false;
 
 	char cmd[8];
-	sprintf_s(cmd, "%02X%02X\r", 1, (int)pid);
-	m_ser.SendData(cmd, strlen(cmd));
+	sprintf_s(cmd, "%02X%02X\r", 1, (int)pid); //Service Mode 01
+	m_ser.SendData((BYTE*)cmd, strlen(cmd));
 	return true;
 }
 
 
+// maybe connection check?
 bool cOBD2::MemsInit()
 {
-	char buf[16];
-	return SendCommand("ATTEMP\r", buf, sizeof(buf)) > 0 && !strchr(buf, '?');
+	char buffer[common::cBufferedSerial::MAX_BUFFERSIZE];
+	ZeroMemory(buffer, sizeof(buffer));
+	const uint readLen = SendCommand("ATTEMP\r", buffer, sizeof(buffer));
+	if ((readLen > 0) && !strchr(buffer, '?'))
+		return true;
+	return false;
 }
 
 
-BYTE cOBD2::SendCommand(const char* cmd, char* buf, byte bufsize
-	, int timeout //= OBD_TIMEOUT_LONG
+uint cOBD2::SendCommand(const char* cmd, char* buf, const uint bufsize
+	, const uint timeout //= OBD_TIMEOUT_LONG
 )
 {
 	if (!IsOpened())
-		return false;
-
-	m_ser.SendData(cmd, strlen(cmd));
-	//dataIdleLoop();
-	//return receive(buf, bufsize, timeout);
-	return 0;
+		return 0;
+	m_ser.SendData((BYTE*)cmd, strlen(cmd));
+	return ReceiveData(buf, bufsize, 1000);
 }
 
 
@@ -197,9 +206,30 @@ bool cOBD2::NormalizeData(const ePID pid, char *data
 }
 
 
+// read data until timeout
+// timeout : milliseconds unit
+uint cOBD2::ReceiveData(char* buf, const uint bufsize, const uint timeout)
+{
+	if (!IsOpened())
+		return false;
+
+	int readLen = 0;
+	uint t = 0;
+	while (t < timeout)
+	{
+		const uint readLen = m_ser.RecvData((BYTE*)buf, bufsize);
+		if (readLen > 0)
+			break;
+		Sleep(10);
+		t += 10;
+	}
+	return (uint)readLen;
+}
+
+
 bool cOBD2::Close()
 {
-	m_ser.ClearBuffer();
 	m_ser.Close();
+	m_state = eState::DISCONNECT;
 	return true;
 }

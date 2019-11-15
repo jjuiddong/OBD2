@@ -153,8 +153,10 @@
   <ItemGroup>
     <ClInclude Include="BufferedSerial.h" />
     <ClInclude Include="circularqueue.h" />
+    <ClInclude Include="cs.h" />
     <ClInclude Include="obd2.h" />
     <ClInclude Include="Serial.h" />
+    <ClInclude Include="SerialAsync.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="utility.h" />
   </ItemGroup>
@@ -163,6 +165,7 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="obd2.cpp" />
     <ClCompile Include="Serial.cpp" />
+    <ClCompile Include="SerialAsync.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>

@@ -72,24 +72,6 @@ public:
 		, PID_ENGINE_TORQUE_DEMANDED = 0x61
 		, PID_ENGINE_TORQUE_PERCENTAGE = 0x62
 		, PID_ENGINE_REF_TORQUE = 0x63
-
-		// non-OBD/custom PIDs (no mode number)
-		, PID_GPS_LATITUDE = 0xA
-		, PID_GPS_LONGITUDE = 0xB
-		, PID_GPS_ALTITUDE = 0xC
-		, PID_GPS_SPEED = 0xD
-		, PID_GPS_HEADING = 0xE
-		, PID_GPS_SAT_COUNT = 0xF
-		, PID_GPS_TIME = 0x10
-		, PID_GPS_DATE = 0x11
-		, PID_ACC = 0x20
-		, PID_GYRO = 0x21
-		, PID_COMPASS = 0x22
-		, PID_MEMS_TEMP = 0x23
-		, PID_BATTERY_VOLTAGE = 0x24
-
-		// custom PIDs for calculated data
-		, PID_TRIP_DISTANCE = 0x30
 	};
 
 	enum {
@@ -112,15 +94,19 @@ public:
 
 protected:
 	bool MemsInit();
-	BYTE SendCommand(const char* cmd, char* buf, byte bufsize, int timeout = OBD_TIMEOUT_LONG);
+	uint SendCommand(const char* cmd, char* buf, const uint bufsize, const uint timeout = OBD_TIMEOUT_LONG);
 	bool NormalizeData(const ePID pid, char *data, OUT int &result);
+	uint ReceiveData(char* buf, const uint bufsize, const uint timeout );
 
 
 public:
-	common::cBufferedSerial m_ser;
+	enum class eState {DISCONNECT, CONNECTING, CONNECT};
+
+	eState m_state;
+	common::cSerialAsync m_ser;
 	iOBD2Receiver *m_receiver;
 	bool m_isLog;
 };
 
 
-inline bool cOBD2::IsOpened() const { return m_ser.IsOpened(); }
+inline bool cOBD2::IsOpened() const { return m_ser.IsOpen(); }
