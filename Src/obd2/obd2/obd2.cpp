@@ -17,7 +17,7 @@ cOBD2::~cOBD2()
 
 // receiver: receive obd2 data
 bool cOBD2::Open(const int comPort //= 2
-	, const int baudRate //= 9600
+	, const int baudRate //= 115200
 	, iOBD2Receiver *receiver //=nullptr
 	, const bool isLog //= false
 )

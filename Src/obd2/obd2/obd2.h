@@ -12,6 +12,7 @@
 #pragma once
 
 interface iOBD2Receiver {
+	// override this method
 	virtual void Recv(const int pid, const int data) = 0;
 };
 
@@ -83,7 +84,7 @@ public:
 	cOBD2();
 	virtual ~cOBD2();
 
-	bool Open(const int comPort = 2, const int baudRate = 9600
+	bool Open(const int comPort = 2, const int baudRate = 115200
 		, iOBD2Receiver *receiver = nullptr
 		, const bool isLog = false);
 	bool Process(const float deltaSeconds);
