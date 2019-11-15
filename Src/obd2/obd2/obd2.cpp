@@ -23,6 +23,7 @@ bool cOBD2::Open(const int comPort //= 2
 {
 	Close();
 	m_isLog = isLog;
+	m_receiver = receiver;
 	if (!m_ser.Open(comPort, baudRate))
 		return false;
 	MemsInit();
@@ -50,20 +51,16 @@ bool cOBD2::Process(const float deltaSeconds)
 	int pid = 0;
 	char *p = buffer;
 	char *data = nullptr;
-	while (p = strstr(p, "410"))
+	while (p = strstr(p, ">41"))
 	{
 		p += 3;
-		BYTE curpid = hex2uint8(p);
+		BYTE curpid = hex2uint8(p); // 2 byte
 		if (pid == 0) 
 			pid = curpid;
 		if (curpid == pid) 
 		{
-			p += 2;
-			if (*p == ' ')
-			{
-				data = p + 1;
-				break;
-			}
+			data = p + 2;
+			break;
 		}
 	}
 	if (!data)
