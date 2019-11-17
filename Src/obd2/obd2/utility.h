@@ -72,17 +72,20 @@ inline int16_t getTemperatureValue(char* data) {
 }
 
 
-inline void Log(const char* fmt, ...)
-{
-	char buffer[256];
-	ZeroMemory(buffer, sizeof(buffer));
+namespace common {
+	namespace dbg {
+		inline void Logp(const char* fmt, ...)
+		{
+			char buffer[256];
+			ZeroMemory(buffer, sizeof(buffer));
 
-	va_list args;
-	va_start(args, fmt);
-	vsnprintf_s(buffer, sizeof(buffer) - 1, _TRUNCATE, fmt, args);
-	va_end(args);
+			va_list args;
+			va_start(args, fmt);
+			vsnprintf_s(buffer, sizeof(buffer) - 1, _TRUNCATE, fmt, args);
+			va_end(args);
 
-	std::ofstream ofs("log.txt", std::ios::app);
-	if (ofs.is_open())
-		ofs << buffer;
-}
+			std::ofstream ofs("log.txt", std::ios::app);
+			if (ofs.is_open())
+				ofs << buffer;
+		}
+} }

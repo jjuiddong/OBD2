@@ -1,6 +1,7 @@
 //
 // 2019-11-14, jjuiddong
 // OBD2 serial communication class
+//		- serial multithreading
 //
 // reference
 //		https://github.com/stanleyhuangyc/ArduinoOBD
@@ -89,13 +90,13 @@ public:
 	bool Open(const int comPort = 2, const int baudRate = 115200
 		, iOBD2Receiver *receiver = nullptr
 		, const bool isLog = false);
-	bool Process(const float deltaSeconds);
-	bool Query(const ePID pid, const bool isQueuing = true);
+	bool Query(const ePID pid);
 	bool Close();
 	bool IsOpened() const;
 
 
 protected:
+	bool Process(const float deltaSeconds);
 	bool MemsInit();
 	bool SendCommand(const char* cmd, char* buf, const uint bufsize
 		, const string &untilStr = ""
@@ -105,22 +106,29 @@ protected:
 		, OUT uint &readLen
 		, const string &untilStr
 		, const uint timeout );
+	static void ThreadFunction(cOBD2 *obd2);
 
 
 public:
 	enum {MAX_QUEUE = 200};
-	enum class eState {DISCONNECT, CONNECTING, CONNECT};
+	enum class eState {Disconnect, Connecting, Connect};
+	enum class eCommState {Send, Recv}; // communication state
 
 	eState m_state;
-	common::cSerialAsync m_ser;
+	eCommState m_commState;
+	int m_comPort;
+	int m_baudRate;
+	common::cBufferedSerial m_ser;
+
 	queue<ePID> m_queryQ;
-	set<int> m_ignorePIDs;
 	iOBD2Receiver *m_receiver;
 	string m_rcvStr;
 	int m_queryCnt;
 	bool m_isLog;
 	float m_waitingTime;
+
+	std::thread m_thread;
+	common::CriticalSection m_cs;
+	int m_sleepMillis; // default: 10ms
 };
 
-
-inline bool cOBD2::IsOpened() const { return m_ser.IsOpen(); }

@@ -17,15 +17,6 @@ BOOL CtrlHandler(DWORD fdwCtrlType) {
 	return TRUE;
 }
 
-void QueryThread(cOBD2 *obd)
-{
-	while (g_isLoop)
-	{
-		obd->Query(cOBD2::PID_RPM);
-		obd->Query(cOBD2::PID_SPEED);
-		Sleep(100);
-	}
-}
 
 int main()
 {
@@ -42,14 +33,9 @@ int main()
 	if (!isOpen)
 		return 0;
 
-	//std::thread th = std::thread(QueryThread, &obd);
 	int t = 0;
-	while (g_isLoop)
+	while (g_isLoop && obd.IsOpened())
 	{
-		obd.Process(0.001f);
-		Sleep(1);
-		t++;
-
 		if (t > 100)
 		{
 			t = 0;
@@ -57,10 +43,9 @@ int main()
 			obd.Query(cOBD2::PID_SPEED);
 		}
 
+		Sleep(1);
+		t++;
 	}
-
-	//if (th.joinable())
-	//	th.join();
 
 	obd.Close();
 }

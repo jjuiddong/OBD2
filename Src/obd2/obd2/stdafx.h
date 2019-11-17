@@ -8,6 +8,7 @@
 #include <thread>
 #include <queue>
 #include <set>
+#include <assert.h>
 #include <windows.h>
 
 #ifndef IN
@@ -23,6 +24,7 @@
 #endif
 
 #define RETV(exp,val)	{if((exp)) return val; }
+#define RETV2(exp,val)	{if((exp)) {assert(0); return val;} }
 
 
 typedef unsigned int uint;
@@ -36,7 +38,6 @@ using std::queue;
 #include "circularqueue.h"
 #include "serial.h"
 #include "BufferedSerial.h"
-#include "SerialAsync.h"
+#include "timer.h"
 #include "utility.h"
 #include "obd2.h"
-

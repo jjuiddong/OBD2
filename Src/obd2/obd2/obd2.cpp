@@ -5,9 +5,11 @@
 
 cOBD2::cOBD2()
 	: m_receiver(nullptr)
-	, m_state(eState::DISCONNECT)
+	, m_state(eState::Disconnect)
+	, m_commState(eCommState::Send)
 	, m_waitingTime(0)
 	, m_queryCnt(0)
+	, m_sleepMillis(10)
 {
 }
 
@@ -25,126 +27,136 @@ bool cOBD2::Open(const int comPort //= 2
 )
 {
 	Close();
+
+	m_comPort = comPort;
+	m_baudRate = baudRate;
 	m_isLog = isLog;
 	m_receiver = receiver;
-	if (!m_ser.Open(comPort, baudRate, '\r'))
-		return false;
 
-	m_state = eState::CONNECTING;
-	if (!MemsInit())
-	{
-		Close();
-		return false;
-	}
+	m_state = eState::Connecting;
+	m_commState = eCommState::Send;
+	m_thread = std::thread(ThreadFunction, this);
 
 	return true;
 }
 
 
+// push queryQ
+bool cOBD2::Query(const ePID pid)
+{
+	if (!IsOpened())
+		return false;
+
+	common::AutoCSLock cs(m_cs);
+	if (m_queryQ.size() > MAX_QUEUE) // check max query size
+		return false; // full queue, exit
+
+	m_queryQ.push(pid);
+	return true;
+}
+
+
+// internal call function
 // process odb2 communication
 bool cOBD2::Process(const float deltaSeconds)
 {
+	const float recvTimeOut = 1.f; 
+
 	if (!IsOpened())
 		return false;
+	if (m_queryQ.empty())
+		return false;
 
-	// no response, send another query
-	m_waitingTime += deltaSeconds;
-	if (!m_queryQ.empty() && (m_waitingTime > 1.f))
+	switch (m_commState)
 	{
+	case eCommState::Send:
+	{
+		m_cs.Lock();
+		const ePID pid = (ePID)m_queryQ.front();
+		m_cs.Unlock();
+
+		char cmd[8];
+		sprintf_s(cmd, "%02X%02X\r", 1, (int)pid); //Service Mode 01
+		m_ser.SendData(cmd, strlen(cmd));
+		++m_queryCnt;
+
+		m_commState = eCommState::Recv;
 		m_waitingTime = 0.f;
-		while (!m_queryQ.empty())
-			m_queryQ.pop();
-		//Query(m_queryQ.front(), false); // send next query
-		//m_queryQ.pop();
-		//dbg::Logc(1, "rcv queue size = %d\n", m_ser.m_rcvQ.size());
-		//dbg::Logc(1, "snd queue size = %d\n", m_ser.m_sndQ.size());
 	}
+	break;
 
-	char buffer[common::cBufferedSerial::MAX_BUFFERSIZE];
-	const uint readLen = m_ser.RecvData((BYTE*)buffer, sizeof(buffer));
-	if (readLen <= 0)
-		return true;
-
-	if ((readLen == 1) && (buffer[0] == '\r'))
-		return true;
-
-	buffer[readLen] = NULL;
-	if (readLen > 3)
+	case eCommState::Recv:
 	{
-		m_rcvStr = buffer;
-		if (m_isLog)
-			Log(buffer);
-	}
-
-	//if (!strcpy_s(buffer, "NO DATA\r") && !m_queryQ.empty())
-	//	m_ignorePIDs.insert((int)m_queryQ.front());
-
-	m_waitingTime = 0.f;
-
-	// parse pid data
-	int pid = 0;
-	char *p = buffer;
-	char *data = nullptr;
-	if (p = strstr(p, "41 "))
-	{
-		p += 3;
-		pid = hex2uint8(p); // 2 byte
-		data = p + 3;
-	}
-
-	// check query queue
-	if (!m_queryQ.empty())
-	{
-		const bool isErr = (m_queryQ.front() != (ePID)pid);
-		if (!isErr)
-			m_queryQ.pop();
-
-		if (!isErr && !m_queryQ.empty())
+		m_waitingTime += deltaSeconds;
+		if (m_waitingTime > recvTimeOut)
 		{
-			Query(m_queryQ.front(), false); // send next query
-			m_queryQ.pop();
+			m_commState = eCommState::Send;
+			if (!m_queryQ.empty())
+			{
+				m_cs.Lock();
+				m_queryQ.pop();
+				m_cs.Unlock();
+			}
+			break;
 		}
-	}
 
-	if (!data)
-		return true;
-
-	int result = 0;
-	if (!NormalizeData((ePID)pid, data, result))
-		return false;
-
-	if (m_receiver) // call callback function
-		m_receiver->Recv(pid, result);
-
-	return true;
-}
-
-
-bool cOBD2::Query(const ePID pid
-	, const bool isQueuing //= true
-)
-{
-	if (!IsOpened())
-		return false;
-
-	if (m_ignorePIDs.end() != m_ignorePIDs.find((int)pid))
-		return false; // ignore pid
-
-	if (isQueuing)
-	{
-		if (m_queryQ.size() > MAX_QUEUE) // check max query size
-			return false; // full queue, exit
-
-		m_queryQ.push(pid);
-
-		if (m_queryQ.size() >= 2) // serial busy? wait
+		char buffer[common::cBufferedSerial::MAX_BUFFERSIZE];
+		int readLen = 0;
+		m_ser.ReadStringUntil('\r', buffer, readLen, sizeof(buffer));
+		if (readLen <= 0)
+			break;
+		if ((readLen == 1) && (buffer[0] == '\r'))
 			return true;
+
+		buffer[readLen] = NULL;
+		if (readLen > 3)
+		{
+			m_rcvStr = buffer;
+			if (m_isLog)
+				common::dbg::Logp(buffer);
+		}
+
+		m_waitingTime = 0.f;
+
+		// parse pid data
+		int pid = 0;
+		char *data = nullptr;
+		char *p = buffer;
+		if (p = strstr(p, "41 "))
+		{
+			p += 3;
+			pid = hex2uint8(p); // 2 byte
+			data = p + 3;
+		}
+
+		// check query queue
+		if (!m_queryQ.empty())
+		{
+			m_cs.Lock();
+			const bool isErr = (m_queryQ.front() != (ePID)pid);
+			m_queryQ.pop();
+			m_cs.Unlock();
+		}
+
+		if (data)
+		{
+			int result = 0;
+			if (NormalizeData((ePID)pid, data, result))
+			{
+				if (m_receiver) // call callback function
+					m_receiver->Recv(pid, result);
+			}
+		}
+
+		m_commState = eCommState::Send;
+	}
+	break;
+
+	default:
+		assert(0);
+		break;
 	}
 
-	char cmd[8];
-	sprintf_s(cmd, "%02X%02X\r", 1, (int)pid); //Service Mode 01
-	m_ser.SendData((BYTE*)cmd, strlen(cmd));
-	++m_queryCnt;
 	return true;
 }
 
@@ -154,9 +166,6 @@ bool cOBD2::MemsInit()
 {
 	char buffer[common::cBufferedSerial::MAX_BUFFERSIZE];
 	ZeroMemory(buffer, sizeof(buffer));
-	//const uint readLen = SendCommand("ATTEMP\r", buffer, sizeof(buffer));
-	//if ((readLen <= 0) || !strchr(buffer, '?'))
-	//	return false;
 
 	bool r = false; // result
 
@@ -164,7 +173,7 @@ bool cOBD2::MemsInit()
 	//SendCommand("ATD\r", buffer, sizeof(buffer), "OK");
 
 	// print id
-	SendCommand("AT I\r", buffer, sizeof(buffer), "ELM327");
+	r = SendCommand("AT I\r", buffer, sizeof(buffer), "ELM327");
 
 	// echo on/off
 	//SendCommand("AT E0\r", buffer, sizeof(buffer), "OK");
@@ -229,6 +238,8 @@ bool cOBD2::MemsInit()
 }
 
 
+// blocking mode
+// send, recv command
 bool cOBD2::SendCommand(const char* cmd, char* buf, const uint bufsize
 	, const string &untilStr //= ""
 	, const uint timeout //= OBD_TIMEOUT_LONG
@@ -237,7 +248,7 @@ bool cOBD2::SendCommand(const char* cmd, char* buf, const uint bufsize
 	if (!IsOpened())
 		return 0;
 
-	m_ser.SendData((BYTE*)cmd, strlen(cmd));
+	m_ser.SendData(cmd, strlen(cmd));
 	uint readLen = 0;
 	return ReceiveData(buf, bufsize, readLen, untilStr, 1000);
 }
@@ -337,17 +348,20 @@ bool cOBD2::ReceiveData(char* buf, const uint bufsize
 	, const string &untilStr
 	, const uint timeout)
 {
+	using namespace std::chrono_literals;
+
 	if (!IsOpened())
 		return false;
 
 	uint t = 0;
 	while (t < timeout)
 	{
-		const uint len = m_ser.RecvData((BYTE*)buf, bufsize);
+		int len = 0;
+		m_ser.ReadStringUntil('\r', buf, len, bufsize);
 		if (len == 0)
 		{
-			Sleep(10);
-			t += 10;
+			std::this_thread::sleep_for(10ms);
+			t += 11;
 			continue;
 		}
 
@@ -375,8 +389,8 @@ bool cOBD2::ReceiveData(char* buf, const uint bufsize
 			return true;
 		}
 
-		Sleep(10);
-		t += 10;
+		std::this_thread::sleep_for(10ms);
+		t += 11;
 	}
 
 	// no matching or time out, fail return
@@ -385,11 +399,53 @@ bool cOBD2::ReceiveData(char* buf, const uint bufsize
 }
 
 
+bool cOBD2::IsOpened() const
+{
+	return m_state != eState::Disconnect;
+}
+
+
 bool cOBD2::Close()
 {
+	m_state = eState::Disconnect;
+	if (m_thread.joinable())
+		m_thread.join();
+
 	m_ser.Close();
 	while (!m_queryQ.empty())
 		m_queryQ.pop();
-	m_state = eState::DISCONNECT;
+
 	return true;
+}
+
+
+// thread function
+void cOBD2::ThreadFunction(cOBD2 *obd)
+{
+	obd->m_state = eState::Connecting;
+	if (!obd->m_ser.Open(obd->m_comPort, obd->m_baudRate))
+	{
+		obd->m_state = eState::Disconnect;
+		return;
+	}
+
+	if (!obd->MemsInit())
+	{
+		obd->m_ser.Close();
+		obd->m_state = eState::Disconnect;
+		return;
+	}
+
+	common::cTimer timer;
+	timer.Create();
+
+	obd->m_state = eState::Connect;
+	while (obd->m_state == eState::Connect)
+	{
+		const double dt = timer.GetDeltaSeconds();
+		obd->Process((float)dt);
+
+		std::this_thread::sleep_for(
+			std::chrono::duration<int, std::milli>(obd->m_sleepMillis));
+	}
 }

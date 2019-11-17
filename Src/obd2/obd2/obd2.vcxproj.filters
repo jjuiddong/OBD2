@@ -10,7 +10,7 @@
       <Filter>common</Filter>
     </ClCompile>
     <ClCompile Include="obd2.cpp" />
-    <ClCompile Include="SerialAsync.cpp">
+    <ClCompile Include="timer.cpp">
       <Filter>common</Filter>
     </ClCompile>
   </ItemGroup>
@@ -29,10 +29,10 @@
     <ClInclude Include="utility.h">
       <Filter>common</Filter>
     </ClInclude>
-    <ClInclude Include="SerialAsync.h">
+    <ClInclude Include="cs.h">
       <Filter>common</Filter>
     </ClInclude>
-    <ClInclude Include="cs.h">
+    <ClInclude Include="timer.h">
       <Filter>common</Filter>
     </ClInclude>
   </ItemGroup>
