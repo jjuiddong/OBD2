@@ -167,12 +167,12 @@ bool cOBD2::MemsInit()
 	SendCommand("AT I\r", buffer, sizeof(buffer), "ELM327");
 
 	// echo on/off
-	SendCommand("AT E0\r", buffer, sizeof(buffer), "OK");
+	//SendCommand("AT E0\r", buffer, sizeof(buffer), "OK");
 	//SendCommand("ATE0\r", buffer, sizeof(buffer), "OK");
 	//SendCommand("ATE1\r", buffer, sizeof(buffer), "OK");
 
 	// space on/off
-	SendCommand("AT S0\r", buffer, sizeof(buffer), "OK");
+	//SendCommand("AT S0\r", buffer, sizeof(buffer), "OK");
 	//SendCommand("ATS0\r", buffer, sizeof(buffer), "OK");
 	//SendCommand("ATS1\r", buffer, sizeof(buffer), "OK");
 
@@ -201,14 +201,14 @@ bool cOBD2::MemsInit()
 	// set serial baudrate 115200
 	// https://www.scantool.net/blog/switching-communication-baud-rate/
 	// https://www.elmelectronics.com/wp-content/uploads/2016/06/AppNote04.pdf
-	SendCommand("AT PP 0C SV 23\r", buffer, sizeof(buffer), "OK\r");
+	//SendCommand("AT PP 0C SV 23\r", buffer, sizeof(buffer), "OK\r");
 
 	// character echo setting
 	//SendCommand("AT PP 09 FF \r", buffer, sizeof(buffer), "OK\r"); // echo off
 	//SendCommand("AT PP 09 00 \r", buffer, sizeof(buffer), "OK\r"); // echo on
 
 	// save setting
-	SendCommand("AT PP ON\r", buffer, sizeof(buffer), "OK\r");
+	//SendCommand("AT PP ON\r", buffer, sizeof(buffer), "OK\r");
 
 	// set default
 	//r = SendCommand("ATD\r", buffer, sizeof(buffer), "OK");
@@ -356,10 +356,10 @@ bool cOBD2::ReceiveData(char* buf, const uint bufsize
 		if ((len == 2) && (buf[0] == '>') && (buf[1] == '\r'))
 			continue;
 
-		if (bufsize > (uint)readLen)
-			buf[readLen] = NULL;
+		if (bufsize > (uint)len)
+			buf[len] = NULL;
 
-		if (!untilStr.empty() && readLen > 0)
+		if (!untilStr.empty() && len > 0)
 		{
 			if (string::npos != string(buf).find(untilStr))
 			{
@@ -368,7 +368,7 @@ bool cOBD2::ReceiveData(char* buf, const uint bufsize
 				return true;
 			}
 		}
-		else if (untilStr.empty() && readLen > 0)
+		else if (untilStr.empty() && len > 0)
 		{
 			// no matching string, success return
 			readLen = len;

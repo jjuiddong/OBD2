@@ -23,7 +23,7 @@ void QueryThread(cOBD2 *obd)
 	{
 		obd->Query(cOBD2::PID_RPM);
 		obd->Query(cOBD2::PID_SPEED);
-		Sleep(1000);
+		Sleep(100);
 	}
 }
 
@@ -38,19 +38,29 @@ int main()
 	cOBDRecv rcv;
 	cOBD2 obd;
 	const int baudrates[] = { 115200, 38400 };
-	const bool isOpen = obd.Open(4, baudrates[0], &rcv, true);
+	const bool isOpen = obd.Open(6, baudrates[0], &rcv, true);
 	if (!isOpen)
 		return 0;
 
-	std::thread th = std::thread(QueryThread, &obd);
+	//std::thread th = std::thread(QueryThread, &obd);
+	int t = 0;
 	while (g_isLoop)
 	{
 		obd.Process(0.001f);
 		Sleep(1);
+		t++;
+
+		if (t > 100)
+		{
+			t = 0;
+			obd.Query(cOBD2::PID_RPM);
+			obd.Query(cOBD2::PID_SPEED);
+		}
+
 	}
 
-	if (th.joinable())
-		th.join();
+	//if (th.joinable())
+	//	th.join();
 
 	obd.Close();
 }
