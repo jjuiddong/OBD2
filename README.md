@@ -1,10 +1,9 @@
 # OBD2
 OBD2 Serial Communication with VS2017 C++
-
+- OBD-II (On-Board Diagnostic version II)
 - reference source code (embedded c, atmel library)
   - https://github.com/stanleyhuangyc/ArduinoOBD
 - serial, buffering, threading
-- circularqueue 
 - obd2
   - pid queuing
 
