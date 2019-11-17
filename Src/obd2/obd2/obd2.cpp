@@ -73,7 +73,7 @@ bool cOBD2::Process(const float deltaSeconds)
 	if (p = strstr(p, ">41"))
 	{
 		p += 3;
-		BYTE curpid = hex2uint8(p); // 2 byte
+		pid = hex2uint8(p); // 2 byte
 		data = p + 2;
 	}
 	if (!data)
