@@ -73,6 +73,8 @@ public:
 		, PID_ENGINE_TORQUE_DEMANDED = 0x61
 		, PID_ENGINE_TORQUE_PERCENTAGE = 0x62
 		, PID_ENGINE_REF_TORQUE = 0x63
+
+		, PID_TRANSMISSION_GEAR = 0xA4
 	};
 
 	enum {
@@ -95,18 +97,27 @@ public:
 
 protected:
 	bool MemsInit();
-	uint SendCommand(const char* cmd, char* buf, const uint bufsize, const uint timeout = OBD_TIMEOUT_LONG);
+	bool SendCommand(const char* cmd, char* buf, const uint bufsize
+		, const string &untilStr = ""
+		, const uint timeout = OBD_TIMEOUT_LONG);
 	bool NormalizeData(const ePID pid, char *data, OUT int &result);
-	uint ReceiveData(char* buf, const uint bufsize, const uint timeout );
+	bool ReceiveData(char* buf, const uint bufsize
+		, OUT uint &readLen
+		, const string &untilStr
+		, const uint timeout );
 
 
 public:
+	enum {MAX_QUEUE = 200};
 	enum class eState {DISCONNECT, CONNECTING, CONNECT};
 
 	eState m_state;
 	common::cSerialAsync m_ser;
-	std::queue<ePID> m_queryQ;
+	queue<ePID> m_queryQ;
+	set<int> m_ignorePIDs;
 	iOBD2Receiver *m_receiver;
+	string m_rcvStr;
+	int m_queryCnt;
 	bool m_isLog;
 	float m_waitingTime;
 };

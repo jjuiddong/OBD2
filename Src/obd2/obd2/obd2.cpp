@@ -7,6 +7,7 @@ cOBD2::cOBD2()
 	: m_receiver(nullptr)
 	, m_state(eState::DISCONNECT)
 	, m_waitingTime(0)
+	, m_queryCnt(0)
 {
 }
 
@@ -51,8 +52,12 @@ bool cOBD2::Process(const float deltaSeconds)
 	if (!m_queryQ.empty() && (m_waitingTime > 1.f))
 	{
 		m_waitingTime = 0.f;
-		Query(m_queryQ.front(), false); // send next query
-		m_queryQ.pop();
+		while (!m_queryQ.empty())
+			m_queryQ.pop();
+		//Query(m_queryQ.front(), false); // send next query
+		//m_queryQ.pop();
+		//dbg::Logc(1, "rcv queue size = %d\n", m_ser.m_rcvQ.size());
+		//dbg::Logc(1, "snd queue size = %d\n", m_ser.m_sndQ.size());
 	}
 
 	char buffer[common::cBufferedSerial::MAX_BUFFERSIZE];
@@ -60,9 +65,19 @@ bool cOBD2::Process(const float deltaSeconds)
 	if (readLen <= 0)
 		return true;
 
+	if ((readLen == 1) && (buffer[0] == '\r'))
+		return true;
+
 	buffer[readLen] = NULL;
-	if (m_isLog)
-		Log(buffer);
+	if (readLen > 3)
+	{
+		m_rcvStr = buffer;
+		if (m_isLog)
+			Log(buffer);
+	}
+
+	//if (!strcpy_s(buffer, "NO DATA\r") && !m_queryQ.empty())
+	//	m_ignorePIDs.insert((int)m_queryQ.front());
 
 	m_waitingTime = 0.f;
 
@@ -70,27 +85,29 @@ bool cOBD2::Process(const float deltaSeconds)
 	int pid = 0;
 	char *p = buffer;
 	char *data = nullptr;
-	if (p = strstr(p, ">41"))
+	if (p = strstr(p, "41 "))
 	{
 		p += 3;
 		pid = hex2uint8(p); // 2 byte
-		data = p + 2;
+		data = p + 3;
 	}
-	if (!data)
-		return true;
 
 	// check query queue
 	if (!m_queryQ.empty())
 	{
 		const bool isErr = (m_queryQ.front() != (ePID)pid);
-		m_queryQ.pop();
+		if (!isErr)
+			m_queryQ.pop();
 
-		if (!m_queryQ.empty())
+		if (!isErr && !m_queryQ.empty())
 		{
 			Query(m_queryQ.front(), false); // send next query
 			m_queryQ.pop();
 		}
 	}
+
+	if (!data)
+		return true;
 
 	int result = 0;
 	if (!NormalizeData((ePID)pid, data, result))
@@ -110,9 +127,12 @@ bool cOBD2::Query(const ePID pid
 	if (!IsOpened())
 		return false;
 
+	if (m_ignorePIDs.end() != m_ignorePIDs.find((int)pid))
+		return false; // ignore pid
+
 	if (isQueuing)
 	{
-		if (m_queryQ.size() > 20) // check max query size
+		if (m_queryQ.size() > MAX_QUEUE) // check max query size
 			return false; // full queue, exit
 
 		m_queryQ.push(pid);
@@ -124,6 +144,7 @@ bool cOBD2::Query(const ePID pid
 	char cmd[8];
 	sprintf_s(cmd, "%02X%02X\r", 1, (int)pid); //Service Mode 01
 	m_ser.SendData((BYTE*)cmd, strlen(cmd));
+	++m_queryCnt;
 	return true;
 }
 
@@ -133,21 +154,92 @@ bool cOBD2::MemsInit()
 {
 	char buffer[common::cBufferedSerial::MAX_BUFFERSIZE];
 	ZeroMemory(buffer, sizeof(buffer));
-	const uint readLen = SendCommand("ATTEMP\r", buffer, sizeof(buffer));
-	if ((readLen > 0) && strchr(buffer, '?'))
-		return true;
-	return false;
+	//const uint readLen = SendCommand("ATTEMP\r", buffer, sizeof(buffer));
+	//if ((readLen <= 0) || !strchr(buffer, '?'))
+	//	return false;
+
+	bool r = false; // result
+
+	// set default
+	//SendCommand("ATD\r", buffer, sizeof(buffer), "OK");
+
+	// print id
+	SendCommand("AT I\r", buffer, sizeof(buffer), "ELM327");
+
+	// echo on/off
+	SendCommand("AT E0\r", buffer, sizeof(buffer), "OK");
+	//SendCommand("ATE0\r", buffer, sizeof(buffer), "OK");
+	//SendCommand("ATE1\r", buffer, sizeof(buffer), "OK");
+
+	// space on/off
+	SendCommand("AT S0\r", buffer, sizeof(buffer), "OK");
+	//SendCommand("ATS0\r", buffer, sizeof(buffer), "OK");
+	//SendCommand("ATS1\r", buffer, sizeof(buffer), "OK");
+
+	// protocol command
+	// ISO 15765-4 CAN (29 bit ID, 500 kbaud)
+	//SendCommand("ATSP7\r", buffer, sizeof(buffer), "OK");
+
+	// Automatic protocol detection
+	//SendCommand("ATSP0\r", buffer, sizeof(buffer), "OK");
+
+	// Display current protocol using
+	//SendCommand("ATDP\r", buffer, sizeof(buffer));
+
+	// Steps for implementing a simple obd scanner in a micro controller using ELM327
+	// http://dthoughts.com/blog/2014/11/06/obd-scanner-using-elm327/
+	// ATZ -> ATSP0 -> 0100 -> recv 41 ~~ -> ATDP
+	//r = SendCommand("ATZ\r", buffer, sizeof(buffer), "ELM327");
+	//r = SendCommand("ATSP0\r", buffer, sizeof(buffer), "OK");
+	//r = SendCommand("0100\r", buffer, sizeof(buffer), "41 ");
+	//r = SendCommand("ATDP\r", buffer, sizeof(buffer));
+
+	// factory reset
+	//SendCommand("AT PP FF OFF\r", buffer, sizeof(buffer), "OK\r");
+	//SendCommand("ATZ\r", buffer, sizeof(buffer), "ELM327");
+
+	// set serial baudrate 115200
+	// https://www.scantool.net/blog/switching-communication-baud-rate/
+	// https://www.elmelectronics.com/wp-content/uploads/2016/06/AppNote04.pdf
+	SendCommand("AT PP 0C SV 23\r", buffer, sizeof(buffer), "OK\r");
+
+	// character echo setting
+	//SendCommand("AT PP 09 FF \r", buffer, sizeof(buffer), "OK\r"); // echo off
+	//SendCommand("AT PP 09 00 \r", buffer, sizeof(buffer), "OK\r"); // echo on
+
+	// save setting
+	SendCommand("AT PP ON\r", buffer, sizeof(buffer), "OK\r");
+
+	// set default
+	//r = SendCommand("ATD\r", buffer, sizeof(buffer), "OK");
+
+	// reset all for update settings
+	r = SendCommand("ATZ\r", buffer, sizeof(buffer), "ELM327");
+
+	// https://www.sparkfun.com/datasheets/Widgets/ELM327_AT_Commands.pdf
+	// SERIAL BAUDRATE 10400
+	//SendCommand("IB 10\r", buffer, sizeof(buffer));
+
+	// check connection
+	r = SendCommand("ATTEMP\r", buffer, sizeof(buffer), "?");
+	if (!r)
+		return false;
+
+	return true;
 }
 
 
-uint cOBD2::SendCommand(const char* cmd, char* buf, const uint bufsize
+bool cOBD2::SendCommand(const char* cmd, char* buf, const uint bufsize
+	, const string &untilStr //= ""
 	, const uint timeout //= OBD_TIMEOUT_LONG
 )
 {
 	if (!IsOpened())
 		return 0;
+
 	m_ser.SendData((BYTE*)cmd, strlen(cmd));
-	return ReceiveData(buf, bufsize, 1000);
+	uint readLen = 0;
+	return ReceiveData(buf, bufsize, readLen, untilStr, 1000);
 }
 
 
@@ -240,22 +332,56 @@ bool cOBD2::NormalizeData(const ePID pid, char *data
 
 // read data until timeout
 // timeout : milliseconds unit
-uint cOBD2::ReceiveData(char* buf, const uint bufsize, const uint timeout)
+bool cOBD2::ReceiveData(char* buf, const uint bufsize
+	, OUT uint &readLen
+	, const string &untilStr
+	, const uint timeout)
 {
 	if (!IsOpened())
 		return false;
 
-	int readLen = 0;
 	uint t = 0;
 	while (t < timeout)
 	{
-		readLen = m_ser.RecvData((BYTE*)buf, bufsize);
-		if (readLen > 0)
-			break;
+		const uint len = m_ser.RecvData((BYTE*)buf, bufsize);
+		if (len == 0)
+		{
+			Sleep(10);
+			t += 10;
+			continue;
+		}
+
+		if ((len == 1) && (buf[0] == '\r'))
+			continue;
+		if ((len == 2) && (buf[0] == '>') && (buf[1] == '\r'))
+			continue;
+
+		if (bufsize > (uint)readLen)
+			buf[readLen] = NULL;
+
+		if (!untilStr.empty() && readLen > 0)
+		{
+			if (string::npos != string(buf).find(untilStr))
+			{
+				// maching string, success return
+				readLen = len;
+				return true;
+			}
+		}
+		else if (untilStr.empty() && readLen > 0)
+		{
+			// no matching string, success return
+			readLen = len;
+			return true;
+		}
+
 		Sleep(10);
 		t += 10;
 	}
-	return (uint)readLen;
+
+	// no matching or time out, fail return
+	readLen = 0;
+	return false;
 }
 
 

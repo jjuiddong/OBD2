@@ -17,16 +17,6 @@ BOOL CtrlHandler(DWORD fdwCtrlType) {
 	return TRUE;
 }
 
-void WaitObd2(cOBD2 &obd)
-{
-	for (int i = 0; i < 1000; ++i)
-	{
-		obd.Process(0.001f);
-		Sleep(1);
-	}
-}
-
-
 void QueryThread(cOBD2 *obd)
 {
 	while (g_isLoop)

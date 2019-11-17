@@ -7,6 +7,7 @@
 #include <fstream>
 #include <thread>
 #include <queue>
+#include <set>
 #include <windows.h>
 
 #ifndef IN
@@ -25,6 +26,11 @@
 
 
 typedef unsigned int uint;
+
+using std::string;
+using std::set;
+using std::queue;
+
 
 #include "cs.h"
 #include "circularqueue.h"
