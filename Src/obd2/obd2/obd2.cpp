@@ -53,8 +53,6 @@ bool cOBD2::Process(const float deltaSeconds)
 		m_waitingTime = 0.f;
 		Query(m_queryQ.front(), false); // send next query
 		m_queryQ.pop();
-		//Log("rcv queue size = %d\n", m_ser.m_rcvQ.size());
-		//Log("snd queue size = %d\n", m_ser.m_sndQ.size());
 	}
 
 	char buffer[common::cBufferedSerial::MAX_BUFFERSIZE];
@@ -72,17 +70,11 @@ bool cOBD2::Process(const float deltaSeconds)
 	int pid = 0;
 	char *p = buffer;
 	char *data = nullptr;
-	while (p = strstr(p, ">41"))
+	if (p = strstr(p, ">41"))
 	{
 		p += 3;
 		BYTE curpid = hex2uint8(p); // 2 byte
-		if (pid == 0) 
-			pid = curpid;
-		if (curpid == pid) 
-		{
-			data = p + 2;
-			break;
-		}
+		data = p + 2;
 	}
 	if (!data)
 		return true;

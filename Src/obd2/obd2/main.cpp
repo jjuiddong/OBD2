@@ -26,6 +26,17 @@ void WaitObd2(cOBD2 &obd)
 	}
 }
 
+
+void QueryThread(cOBD2 *obd)
+{
+	while (g_isLoop)
+	{
+		obd->Query(cOBD2::PID_RPM);
+		obd->Query(cOBD2::PID_SPEED);
+		Sleep(1000);
+	}
+}
+
 int main()
 {
 	if (!SetConsoleCtrlHandler((PHANDLER_ROUTINE)CtrlHandler, TRUE))
@@ -41,13 +52,15 @@ int main()
 	if (!isOpen)
 		return 0;
 
+	std::thread th = std::thread(QueryThread, &obd);
 	while (g_isLoop)
 	{
-		obd.Query(cOBD2::PID_RPM);
-		WaitObd2(obd);
-		obd.Query(cOBD2::PID_SPEED);
-		WaitObd2(obd);
+		obd.Process(0.001f);
+		Sleep(1);
 	}
+
+	if (th.joinable())
+		th.join();
 
 	obd.Close();
 }
