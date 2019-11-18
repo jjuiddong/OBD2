@@ -9,7 +9,9 @@ cOBD2::cOBD2()
 	, m_commState(eCommState::Send)
 	, m_waitingTime(0)
 	, m_queryCnt(0)
-	, m_sleepMillis(10)
+	, m_sleepMillis(1)
+	, m_sndDelayTime(0)
+	, m_stoppedCnt(0)
 {
 }
 
@@ -60,7 +62,10 @@ bool cOBD2::Query(const ePID pid)
 // process odb2 communication
 bool cOBD2::Process(const float deltaSeconds)
 {
+	using namespace std::chrono_literals;
+
 	const float recvTimeOut = 1.f; 
+	const float sendDelayTime = 0.05f;
 
 	if (!IsOpened())
 		return false;
@@ -71,6 +76,10 @@ bool cOBD2::Process(const float deltaSeconds)
 	{
 	case eCommState::Send:
 	{
+		m_sndDelayTime -= deltaSeconds;
+		if (m_sndDelayTime > 0)
+			break;
+
 		m_cs.Lock();
 		const ePID pid = (ePID)m_queryQ.front();
 		m_cs.Unlock();
@@ -82,6 +91,7 @@ bool cOBD2::Process(const float deltaSeconds)
 
 		m_commState = eCommState::Recv;
 		m_waitingTime = 0.f;
+		std::this_thread::sleep_for(1ms);
 	}
 	break;
 
@@ -91,6 +101,7 @@ bool cOBD2::Process(const float deltaSeconds)
 		if (m_waitingTime > recvTimeOut)
 		{
 			m_commState = eCommState::Send;
+			std::this_thread::sleep_for(1ms);
 			if (!m_queryQ.empty())
 			{
 				m_cs.Lock();
@@ -129,26 +140,33 @@ bool cOBD2::Process(const float deltaSeconds)
 			data = p + 3;
 		}
 
-		// check query queue
-		if (!m_queryQ.empty())
-		{
-			m_cs.Lock();
-			const bool isErr = (m_queryQ.front() != (ePID)pid);
-			m_queryQ.pop();
-			m_cs.Unlock();
-		}
-
 		if (data)
 		{
+			// check query queue
+			if (!m_queryQ.empty())
+			{
+				m_cs.Lock();
+				const bool isErr = (m_queryQ.front() != (ePID)pid);
+				m_queryQ.pop();
+				m_cs.Unlock();
+			}
+
 			int result = 0;
 			if (NormalizeData((ePID)pid, data, result))
 			{
 				if (m_receiver) // call callback function
 					m_receiver->Recv(pid, result);
 			}
-		}
 
-		m_commState = eCommState::Send;
+			m_commState = eCommState::Send;
+			m_sndDelayTime = sendDelayTime;
+			std::this_thread::sleep_for(1ms);
+		}
+		else
+		{
+			if (string::npos != m_rcvStr.find("STOPPED"))
+				++m_stoppedCnt;
+		}
 	}
 	break;
 
@@ -445,7 +463,7 @@ void cOBD2::ThreadFunction(cOBD2 *obd)
 		const double dt = timer.GetDeltaSeconds();
 		obd->Process((float)dt);
 
-		std::this_thread::sleep_for(
-			std::chrono::duration<int, std::milli>(obd->m_sleepMillis));
+		//std::this_thread::sleep_for(
+		//	std::chrono::duration<int, std::milli>(obd->m_sleepMillis));
 	}
 }

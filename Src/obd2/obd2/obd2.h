@@ -123,9 +123,11 @@ public:
 	queue<ePID> m_queryQ;
 	iOBD2Receiver *m_receiver;
 	string m_rcvStr;
-	int m_queryCnt;
+	uint m_queryCnt;
+	uint m_stoppedCnt;
 	bool m_isLog;
 	float m_waitingTime;
+	float m_sndDelayTime;
 
 	std::thread m_thread;
 	common::CriticalSection m_cs;
