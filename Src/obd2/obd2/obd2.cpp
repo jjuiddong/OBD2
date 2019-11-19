@@ -10,7 +10,7 @@ cOBD2::cOBD2()
 	, m_waitingTime(0)
 	, m_queryCnt(0)
 	, m_sleepMillis(1)
-	, m_sndDelayTime(0)
+	, m_sndDelayTime(0.f)
 	, m_stoppedCnt(0)
 {
 }
@@ -37,6 +37,7 @@ bool cOBD2::Open(const int comPort //= 2
 
 	m_state = eState::Connecting;
 	m_commState = eCommState::Send;
+	m_sndDelayTime = 0.f;
 	m_thread = std::thread(ThreadFunction, this);
 
 	return true;
@@ -88,6 +89,7 @@ bool cOBD2::Process(const float deltaSeconds)
 		sprintf_s(cmd, "%02X%02X\r", 1, (int)pid); //Service Mode 01
 		m_ser.SendData(cmd, strlen(cmd));
 		++m_queryCnt;
+
 
 		m_commState = eCommState::Recv;
 		m_waitingTime = 0.f;
