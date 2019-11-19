@@ -91,7 +91,6 @@ bool cOBD2::Process(const float deltaSeconds)
 
 		m_commState = eCommState::Recv;
 		m_waitingTime = 0.f;
-		std::this_thread::sleep_for(1ms);
 	}
 	break;
 
@@ -112,33 +111,44 @@ bool cOBD2::Process(const float deltaSeconds)
 		}
 
 		char buffer[common::cBufferedSerial::MAX_BUFFERSIZE];
-		int readLen = 0;
-		m_ser.ReadStringUntil('\r', buffer, readLen, sizeof(buffer));
-		if (readLen <= 0)
-			break;
-		if ((readLen == 1) && (buffer[0] == '\r'))
-			return true;
-
-		buffer[readLen] = NULL;
-		if (readLen > 3)
-		{
-			m_rcvStr = buffer;
-			if (m_isLog)
-				common::dbg::Logp(buffer);
-		}
-
-		m_waitingTime = 0.f;
-
-		// parse pid data
 		int pid = 0;
 		char *data = nullptr;
-		char *p = buffer;
-		if (p = strstr(p, "41 "))
+
+		int readLen = 0;
+		int procCnt = 0;
+		while (procCnt++ < 10)
 		{
-			p += 3;
-			pid = hex2uint8(p); // 2 byte
-			data = p + 3;
+			m_ser.ReadStringUntil('\r', buffer, readLen, sizeof(buffer));
+			if (readLen <= 0)
+				continue;
+			if ((readLen == 1) && (buffer[0] == '\r'))
+				continue;
+
+			buffer[readLen] = NULL;
+			if (readLen > 3)
+			{
+				m_rcvStr = buffer;
+				if (m_isLog)
+					common::dbg::Logp(buffer);
+			}
+
+			m_waitingTime = 0.f;
+
+			// parse pid data
+			pid = 0;
+			data = nullptr;
+			char *p = buffer;
+			if (p = strstr(p, "41 "))
+			{
+				p += 3;
+				pid = hex2uint8(p); // 2 byte
+				data = p + 3;
+			}
+
+			if (data)
+				break;
 		}
+
 
 		if (data)
 		{
@@ -463,7 +473,7 @@ void cOBD2::ThreadFunction(cOBD2 *obd)
 		const double dt = timer.GetDeltaSeconds();
 		obd->Process((float)dt);
 
-		//std::this_thread::sleep_for(
-		//	std::chrono::duration<int, std::milli>(obd->m_sleepMillis));
+		std::this_thread::sleep_for(
+			std::chrono::duration<int, std::milli>(obd->m_sleepMillis));
 	}
 }

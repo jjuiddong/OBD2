@@ -29,7 +29,7 @@ int main()
 	cOBDRecv rcv;
 	cOBD2 obd;
 	const int baudrates[] = { 115200, 38400 };
-	const bool isOpen = obd.Open(6, baudrates[0], &rcv, true);
+	const bool isOpen = obd.Open(4, baudrates[0], &rcv, true);
 	if (!isOpen)
 		return 0;
 
